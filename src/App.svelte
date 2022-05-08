@@ -10,7 +10,7 @@
 			<div class="mx-auto max-w-4xl h-full">
 				<!-- toolbar -->
 				<div class="flex justify-between">
-					<input type="file" bind:this={fileInput} class="hidden">
+					<input type="file" bind:this={fileInput} on:change={onOpenFile} class="hidden">
 					<div class="flex divide-x">
 						<button type="button" on:click={onOpen} class="px-4 py-2 flex gap-2 items-center disabled:text-slate-400">
 							<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor">
@@ -53,20 +53,38 @@
 	import Modal, { bind } from 'svelte-simple-modal';
 	import Editor from "@components/Editor.svelte";
 	import FormPassword from "@components/FormPassword.svelte";
+	import { decrypt, encrypt } from '@module/encryption';
+	import { exportFile, processFile } from '@module/file';
 
 	const modal = writable(null);
 
 	let fileInput: HTMLInputElement;
 	let text = '';
 
-	const onSubmit = () => {
+	const onSubmit = (password) => {
+		const result = encrypt(text, password);
+		exportFile(result);
+		text = '';
 		modal.set(null);
+	}
+	const onOpened = async (password) => {
+		if (fileInput.files.length < 1) return;
+		const cipher = await processFile(fileInput.files[0]);
+		const result = decrypt(cipher, password);
+		if (result) {
+			text = result;
+			modal.set(null);
+			fileInput.value = '';
+		} else alert('Password invalid.');
 	}
 
 	const onClear = () => window.location.reload();
 	const onOpen = () => fileInput.click();
 	const onSave = () => {
 		modal.set(bind(FormPassword, { onSubmit, confirmation: true }));
+	}
+	const onOpenFile = () => {
+		modal.set(bind(FormPassword, { onSubmit: onOpened }));
 	}
 </script>
 
